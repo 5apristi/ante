@@ -116,7 +116,8 @@ impl Editor {
                         break;
                     }
                 }
-                self.terminal.print("\n\r");
+                //self.terminal.print("\n\r");
+                self.terminal.move_cursor_at(0, i + 1);
             } else {
                 break;
             }
