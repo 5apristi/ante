@@ -125,7 +125,11 @@ impl Editor {
                         break;
                     }
                 }
-                self.terminal.move_cursor_at(0, i + 1);
+                if self.current_row_position() == self.terminal.get_size_row() - 2 {
+                    self.terminal.move_cursor_at(0, i + 1);
+                } else {
+                    self.terminal.print("\r\n");
+                }
             } else {
                 break;
             }
