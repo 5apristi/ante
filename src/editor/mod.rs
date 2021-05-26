@@ -203,6 +203,7 @@ impl Editor {
             self.cursor.set_col(0);
         }
     }
+    // TODO: refactor this fn
     fn key_pressed_with_ctrl(&mut self, key: Key) {
         match key {
             Key::Char('c') => self.will_quit = true,
