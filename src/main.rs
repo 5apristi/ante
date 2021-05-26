@@ -7,7 +7,7 @@ fn main() {
     if let Some(s) = &path_arg {
         for character in s.chars() {
             match character {
-                '<' | '>' | ':' | '\"' | '/' | '\\' | '|' | '?' | '*' => {
+                '<' | '>' | ':' | '\"' | '|' | '?' | '*' => {
                     println!("Invalid character: {}", character);
                     exit(0);
                 }

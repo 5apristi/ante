@@ -1,6 +1,7 @@
 use crate::terminal::event::{Event, Key};
 use crate::terminal::Terminal;
 use crate::text_buffer::Buffer;
+use crate::text_buffer::BufferResult;
 use crossterm::style::{style, Color};
 use std::cmp::min;
 use std::path::PathBuf;
@@ -205,11 +206,27 @@ impl Editor {
         match key {
             Key::Char('c') => self.will_quit = true,
             Key::Char('s') => match self.text_buffer.get_path() {
-                Some(_) => self.text_buffer.save(),
+                Some(_) => {
+                    if let BufferResult::Unsaved = self.text_buffer.save() {
+                        self.text_buffer.clear_path();
+                        self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 1);
+                        self.terminal.clear_current_line();
+                        self.terminal.flush();
+                        self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
+                        self.terminal.clear_current_line();
+                        self.terminal.print(style("An error occurred...").with(Color::White).on(Color::Blue)); // TODO: handle correctly the reason why Ante cannot save the file
+                        self.terminal.flush();
+                    }
+                }
                 None => {
                     let path = self.ask_user_for_path();
                     if let Some(s) = path {
-                        self.text_buffer.save_as(s);
+                        if let BufferResult::Unsaved = self.text_buffer.save_as(s) {
+                            self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
+                            self.terminal.clear_current_line();
+                            self.terminal.print(style("An error occurred...").with(Color::White).on(Color::Blue)); // TODO: handle correctly the reason why Ante cannot save the file
+                            self.terminal.flush();
+                        }
                     }
                 }
             },
@@ -233,8 +250,6 @@ impl Editor {
                             && c != '>'
                             && c != ':'
                             && c != '\"'
-                            && c != '/'
-                            && c != '\\'
                             && c != '|'
                             && c != '?'
                             && c != '*' =>

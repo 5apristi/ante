@@ -4,6 +4,11 @@ use std::path::PathBuf;
 mod row_buffer;
 pub use row_buffer::RowBuffer;
 
+pub enum BufferResult {
+    Saved,
+    Unsaved,
+}
+
 pub struct Buffer {
     data: Vec<RowBuffer>,
     lenght: usize,
@@ -59,22 +64,37 @@ impl Buffer {
     }
 
     // write
-    pub fn save(&self) {
-        // NOT SAFE
+    pub fn save(&self) -> BufferResult {
         if let Some(path) = &self.path {
-            let mut file = std::fs::File::create(path).unwrap();
-            for i in 0..self.get_lenght() {
-                write!(file, "{}\n", self.borrow_row_at(i)).unwrap();
+            let file = std::fs::File::create(path);
+            match file {
+                Ok(mut fp) => {
+                    for i in 0..self.get_lenght() {
+                        write!(fp, "{}\n", self.borrow_row_at(i)).unwrap();
+                    }
+                    BufferResult::Saved
+                },
+                Err(_) => BufferResult::Unsaved,
             }
+        } else {
+            BufferResult::Unsaved
         }
     }
-    pub fn save_as(&mut self, path: PathBuf) {
-        // NOT SAFE
+    pub fn save_as(&mut self, path: PathBuf) -> BufferResult {
         self.path = Some(path);
-        self.save();
+        if let BufferResult::Unsaved = self.save() {
+            self.path = None;
+            BufferResult::Unsaved
+        } else {
+            BufferResult::Saved
+        }
     }
     pub fn get_path(&self) -> Option<PathBuf> {
         self.path.clone()
+    }
+
+    pub fn clear_path(&mut self) {
+        self.path = None;
     }
 
     // manip buf
