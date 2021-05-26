@@ -208,7 +208,9 @@ impl Editor {
                 Some(_) => self.text_buffer.save(),
                 None => {
                     let path = self.ask_user_for_path();
-                    self.text_buffer.save_as(path);
+                    if let Some(s) = path {
+                        self.text_buffer.save_as(s);
+                    }
                 }
             },
             Key::Enter => (),
@@ -216,7 +218,7 @@ impl Editor {
         }
     }
 
-    fn ask_user_for_path(&mut self) -> PathBuf {
+    fn ask_user_for_path(&mut self) -> Option<PathBuf> {
         self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
         self.terminal.clear_current_line();
         self.terminal.print(style("Path: ").with(Color::White).on(Color::Blue));
@@ -225,13 +227,28 @@ impl Editor {
         loop {
             match self.terminal.read_event() {
                 Event::KeyPressed(key) => match key {
-                    Key::Char(c) if path_buffer.len() + 7 < self.terminal.get_size_col() => {
+                    Key::Char(c)
+                        if path_buffer.len() + 7 < self.terminal.get_size_col()
+                            && c != '<'
+                            && c != '>'
+                            && c != ':'
+                            && c != '\"'
+                            && c != '/'
+                            && c != '\\'
+                            && c != '|'
+                            && c != '?'
+                            && c != '*' =>
+                    {
                         path_buffer.push(c);
                     }
                     Key::Backspace if path_buffer.len() > 0 => {
                         path_buffer.pop();
                     }
                     Key::Enter => break,
+                    Key::Esc => {
+                        path_buffer.clear();
+                        break;
+                    },
                     _ => (),
                 },
                 _ => (),
@@ -243,7 +260,11 @@ impl Editor {
             self.terminal.flush();
         }
         self.terminal.clear_current_line();
-        PathBuf::from(path_buffer)
+        if path_buffer.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(path_buffer))
+        }
     }
 
     // mainloop

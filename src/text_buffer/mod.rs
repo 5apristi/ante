@@ -62,7 +62,6 @@ impl Buffer {
     pub fn save(&self) {
         // NOT SAFE
         if let Some(path) = &self.path {
-            /*let path = path.as_path();*/
             let mut file = std::fs::File::create(path).unwrap();
             for i in 0..self.get_lenght() {
                 write!(file, "{}\n", self.borrow_row_at(i)).unwrap();
