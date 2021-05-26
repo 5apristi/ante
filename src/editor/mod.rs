@@ -114,21 +114,18 @@ impl Editor {
     // display
     fn draw(&mut self) {
         self.terminal.hide_cursor();
-        self.terminal.move_cursor_at(0, 0);
+        let mut draw_cursor_row_position = 0;
         for i in self.text_buffer_row_offset..(self.terminal.get_size_row() - 1) + self.text_buffer_row_offset {
-            self.terminal.clear_current_line();
             if i < self.text_buffer.get_lenght() {
+                self.terminal.move_cursor_at(0, draw_cursor_row_position);
+                draw_cursor_row_position += 1;
+                self.terminal.clear_current_line();
                 for j in self.text_buffer_col_offset..(self.terminal.get_size_col() - 1) + self.text_buffer_col_offset {
                     if j < self.text_buffer.get_lenght_of_row(i) {
                         self.terminal.print(self.text_buffer.borrow_char_at(j, i));
                     } else {
                         break;
                     }
-                }
-                if self.current_row_position() == self.terminal.get_size_row() - 2 {
-                    self.terminal.move_cursor_at(0, i + 1);
-                } else {
-                    self.terminal.print("\r\n");
                 }
             } else {
                 break;
