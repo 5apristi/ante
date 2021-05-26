@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use std::cmp::min;
-use crossterm::style::{style, Color};
 use crate::terminal::event::{Event, Key};
 use crate::terminal::Terminal;
 use crate::text_buffer::Buffer;
+use crossterm::style::{style, Color};
+use std::cmp::min;
+use std::path::PathBuf;
 
 mod cursor;
 pub use cursor::Cursor;
@@ -57,13 +57,17 @@ impl Editor {
                 self.text_buffer_row_offset -= 1;
             }
             self.cursor.set_col_row(
-                min(self.current_col_position(), self.text_buffer.get_lenght_of_row(self.current_row_position() - 1)),
+                min(
+                    self.current_col_position(),
+                    self.text_buffer.get_lenght_of_row(self.current_row_position() - 1),
+                ),
                 self.current_row_position() - 1,
             );
             if self.current_col_position() < self.terminal.get_size_col() {
                 self.text_buffer_col_offset = 0;
             } else {
-                self.text_buffer_col_offset = self.text_buffer.get_lenght_of_row(self.current_row_position()) - self.terminal.get_size_col();
+                self.text_buffer_col_offset =
+                    self.text_buffer.get_lenght_of_row(self.current_row_position()) - self.terminal.get_size_col();
             }
         }
     }
@@ -73,13 +77,17 @@ impl Editor {
                 self.text_buffer_row_offset += 1;
             }
             self.cursor.set_col_row(
-                min(self.current_col_position(), self.text_buffer.get_lenght_of_row(self.current_row_position() + 1)),
+                min(
+                    self.current_col_position(),
+                    self.text_buffer.get_lenght_of_row(self.current_row_position() + 1),
+                ),
                 self.current_row_position() + 1,
             );
             if self.current_col_position() < self.terminal.get_size_col() {
                 self.text_buffer_col_offset = 0;
             } else {
-                self.text_buffer_col_offset = self.text_buffer.get_lenght_of_row(self.current_row_position()) - self.terminal.get_size_col();
+                self.text_buffer_col_offset =
+                    self.text_buffer.get_lenght_of_row(self.current_row_position()) - self.terminal.get_size_col();
             }
         }
     }
@@ -116,7 +124,6 @@ impl Editor {
                         break;
                     }
                 }
-                //self.terminal.print("\n\r");
                 self.terminal.move_cursor_at(0, i + 1);
             } else {
                 break;
@@ -155,7 +162,8 @@ impl Editor {
         match key {
             // edit buffer
             Key::Char(c) => {
-                self.text_buffer.insert_char(self.current_col_position(), self.current_row_position(), c);
+                self.text_buffer
+                    .insert_char(self.current_col_position(), self.current_row_position(), c);
                 self.move_cursor_right(); // double vérif de current col pos, à revoir
             }
             Key::Backspace => self.backspace_key_pressed(),
@@ -170,7 +178,8 @@ impl Editor {
     }
     fn backspace_key_pressed(&mut self) {
         if self.current_col_position() > 0 {
-            self.text_buffer.delete_char(self.current_col_position() - 1, self.current_row_position());
+            self.text_buffer
+                .delete_char(self.current_col_position() - 1, self.current_row_position());
             self.move_cursor_left();
         } else if self.current_row_position() != 0 {
             let previous_len_row_above = self.text_buffer.get_lenght_of_row(self.current_row_position() - 1);
@@ -184,7 +193,9 @@ impl Editor {
             self.text_buffer.insert_row_at(self.current_row_position() + 1);
             self.move_cursor_down();
         } else {
-            let vec = self.text_buffer.remove_row_from(self.current_col_position(), self.current_row_position());
+            let vec = self
+                .text_buffer
+                .remove_row_from(self.current_col_position(), self.current_row_position());
             self.text_buffer.insert_row_at_with_vec(self.current_row_position() + 1, vec);
             self.move_cursor_down();
             self.cursor.set_col(0);

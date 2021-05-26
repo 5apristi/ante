@@ -109,7 +109,9 @@ impl Terminal {
     pub fn read_event(&mut self) -> Event {
         let event = crossterm::event::read().unwrap();
         match event {
-            CrosstermEvent::Key(key_event) if ((key_event.modifiers == KeyModifiers::NONE) || (key_event.modifiers == KeyModifiers::SHIFT)) => {
+            CrosstermEvent::Key(key_event)
+                if ((key_event.modifiers == KeyModifiers::NONE) || (key_event.modifiers == KeyModifiers::SHIFT)) =>
+            {
                 single_key_pressed(key_event.code)
             }
             CrosstermEvent::Key(key_event) if key_event.modifiers == KeyModifiers::CONTROL && key_event.code != KeyCode::Null => {

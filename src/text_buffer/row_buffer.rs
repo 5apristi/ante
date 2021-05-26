@@ -24,10 +24,16 @@ impl RowBuffer {
         }
     }
     pub fn new_from_vec(vec: Vec<char>) -> Self {
-        Self { lenght: vec.len(), data: vec }
+        Self {
+            lenght: vec.len(),
+            data: vec,
+        }
     }
     pub fn new_empty() -> Self {
-        Self { data: Vec::new(), lenght: 0 }
+        Self {
+            data: Vec::new(),
+            lenght: 0,
+        }
     }
 
     // accessors
