@@ -3,6 +3,9 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::{terminal, Command, ExecutableCommand, QueueableCommand};
 use event::{key_pressed_with_control, single_key_pressed, Event};
 use std::io::{stdout, Stdout, Write};
+pub mod style;
+use style::convert_crossterm_color_enum;
+use style::Color;
 
 pub use size::Size;
 
@@ -40,9 +43,25 @@ impl Terminal {
     }
 
     // display
+    // print
     pub fn print(&mut self, impl_display: impl std::fmt::Display) {
         write!(self.output, "{}", impl_display).unwrap();
     }
+    pub fn print_char(&mut self, character: char, foreground_color: Color, background_color: Color) {
+        self.print(
+            crossterm::style::style(character)
+                .with(convert_crossterm_color_enum(foreground_color))
+                .on(convert_crossterm_color_enum(background_color)),
+        );
+    }
+    pub fn print_text(&mut self, text: &str, foreground_color: Color, background_color: Color) {
+        self.print(
+            crossterm::style::style(text)
+                .with(convert_crossterm_color_enum(foreground_color))
+                .on(convert_crossterm_color_enum(background_color)),
+        );
+    }
+    // clear
     pub fn clear_all(&mut self) {
         self.queue(crossterm::terminal::Clear(crossterm::terminal::ClearType::All));
     }
@@ -66,7 +85,7 @@ impl Terminal {
         self.queue(crossterm::cursor::Show);
     }
     pub fn hide_cursor(&mut self) {
-        self.queue(crossterm::cursor::Show);
+        self.queue(crossterm::cursor::Hide);
     }
     pub fn move_cursor_down(&mut self) {
         if crossterm::cursor::position().unwrap().0 < u16::MAX {
@@ -104,6 +123,12 @@ impl Terminal {
     pub fn get_size(&self) -> Size {
         self.size.clone()
     }
+    pub fn get_last_visible_row_position(&self) -> usize {
+        self.size.get_rows() - 1
+    }
+    pub fn get_last_visible_column_position(&self) -> usize {
+        self.size.get_cols() - 1
+    }
 
     // events
     pub fn read_event(&mut self) -> Event {
@@ -132,9 +157,9 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        self.queue(terminal::LeaveAlternateScreen);
-        self.queue(crossterm::cursor::Show);
+        self.disable_raw_mode();
+        self.leave_alternate_screen();
+        self.show_cursor();
         self.flush();
-        terminal::disable_raw_mode().unwrap();
     }
 }

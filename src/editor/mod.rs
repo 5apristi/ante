@@ -1,20 +1,23 @@
 use crate::terminal::event::{Event, Key};
+use crate::terminal::style::Color;
 use crate::terminal::Terminal;
 use crate::text_buffer::Buffer;
 use crate::text_buffer::BufferResult;
-use crossterm::style::{style, Color};
 use std::cmp::min;
 use std::path::PathBuf;
+
+mod help_menu;
+use help_menu::HELP_MENU_CONTENT;
 
 mod cursor;
 pub use cursor::Cursor;
 
-const STATUS_BAR: &str = "ANTE. Ctrl + C: quit, Ctrl + S: save";
+const STATUS_BAR: &str = "ctrl + h: help menu";
 
 // this structure represent the text editor.
 pub struct Editor {
     // this flag will be turned on (true) if the user asks to quit
-    will_quit: bool,
+    will_quit_flag: bool,
     terminal: Terminal,
     text_buffer: Buffer,
     /* /!\ It's the cursor manipulating the text buffer,
@@ -31,7 +34,7 @@ impl Editor {
     with or without argument (which in this case might be a file path, existing or not) */
     pub fn new(args: Option<String>) -> Self {
         Self {
-            will_quit: false,
+            will_quit_flag: false,
             terminal: Terminal::new(),
             text_buffer: match args {
                 Some(e) => Buffer::new_from_file(PathBuf::from(e)),
@@ -115,12 +118,12 @@ impl Editor {
     fn draw(&mut self) {
         self.terminal.hide_cursor();
         let mut draw_cursor_row_position = 0;
-        for i in self.text_buffer_row_offset..(self.terminal.get_size_row() - 1) + self.text_buffer_row_offset {
+        for i in self.text_buffer_row_offset..self.terminal.get_last_visible_row_position() + self.text_buffer_row_offset {
             if i < self.text_buffer.get_lenght() {
                 self.terminal.move_cursor_at(0, draw_cursor_row_position);
                 draw_cursor_row_position += 1;
                 self.terminal.clear_current_line();
-                for j in self.text_buffer_col_offset..(self.terminal.get_size_col() - 1) + self.text_buffer_col_offset {
+                for j in self.text_buffer_col_offset..self.terminal.get_last_visible_column_position() + self.text_buffer_col_offset {
                     if j < self.text_buffer.get_lenght_of_row(i) {
                         self.terminal.print(self.text_buffer.borrow_char_at(j, i));
                     } else {
@@ -140,22 +143,25 @@ impl Editor {
         self.terminal.flush();
     }
     fn draw_status_bar(&mut self) {
-        self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 1);
-        if STATUS_BAR.len() < self.terminal.get_size_col() {
-            self.terminal.print(style(STATUS_BAR).with(Color::Black).on(Color::White));
+        self.terminal.move_cursor_at(0, self.terminal.get_last_visible_row_position());
+        self.terminal.clear_current_line();
+        if STATUS_BAR.len() + 7 < self.terminal.get_size_col() {
+            self.terminal.print_text(STATUS_BAR, Color::Black, Color::White);
         }
-        if let Some(path) = self.text_buffer.get_path() {
-            if path.clone().to_str().unwrap().len() < self.terminal.get_size_col() {
-                self.terminal.move_cursor_at(
-                    self.terminal.get_size_col() - path.clone().to_str().unwrap_or("").len(),
-                    self.terminal.get_size_row() - 1,
-                );
-                self.terminal.print(
-                    style(path.to_str().unwrap_or("# utf-8 error #")) // if it's not a valid utf-8 seq: panic
-                        .with(Color::White)
-                        .on(Color::Blue),
-                );
-            }
+        match self.text_buffer.get_path() {
+            Some(path) => {
+                if path.clone().to_str().unwrap().len() < self.terminal.get_size_col() {
+                    self.terminal.move_cursor_at(
+                        self.terminal.get_size_col() - path.clone().to_str().unwrap_or("").len(),
+                        self.terminal.get_last_visible_row_position(),
+                    );
+                    self.terminal.print_text(path.to_str().unwrap(), Color::White, Color::Blue);
+                }    
+            },
+            None => {
+                self.terminal.move_cursor_at(self.terminal.get_size_col() - 7, self.terminal.get_last_visible_row_position());
+                self.terminal.print_text("unsaved", Color::White, Color::Red);
+            },
         }
     }
 
@@ -206,7 +212,7 @@ impl Editor {
     // TODO: refactor this fn
     fn key_pressed_with_ctrl(&mut self, key: Key) {
         match key {
-            Key::Char('c') => self.will_quit = true,
+            Key::Char('c') => self.will_quit_flag = true,
             Key::Char('s') => match self.text_buffer.get_path() {
                 Some(_) => {
                     if let BufferResult::Unsaved = self.text_buffer.save() {
@@ -216,7 +222,7 @@ impl Editor {
                         self.terminal.flush();
                         self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
                         self.terminal.clear_current_line();
-                        self.terminal.print(style("An error occurred...").with(Color::White).on(Color::Blue)); // TODO: handle correctly the reason why Ante cannot save the file
+                        self.terminal.print_text("An error occurred...", Color::White, Color::Blue); // TODO: handle correctly the reason why Ante cannot save the file
                         self.terminal.flush();
                     }
                 }
@@ -226,21 +232,43 @@ impl Editor {
                         if let BufferResult::Unsaved = self.text_buffer.save_as(s) {
                             self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
                             self.terminal.clear_current_line();
-                            self.terminal.print(style("An error occurred...").with(Color::White).on(Color::Blue)); // TODO: handle correctly the reason why Ante cannot save the file
+                            self.terminal.print_text("An error occurred...", Color::White, Color::Blue); // TODO: handle correctly the reason why Ante cannot save the file
                             self.terminal.flush();
                         }
                     }
                 }
             },
+            Key::Char('h') => self.open_help_menu(),
             Key::Enter => (),
             _ => (),
         }
     }
+    fn open_help_menu(&mut self) {
+        self.terminal.clear_all();
+        self.terminal.hide_cursor();
+
+        self.terminal.move_cursor_at(0, 0);
+        self.terminal.print_text("Help menu\n\n\r", Color::Black, Color::White);
+        self.terminal.print(HELP_MENU_CONTENT);
+
+        self.terminal.flush();
+        loop {
+            match self.terminal.read_event() {
+                Event::CtrlKeyPressed(key) => match key {
+                    Key::Char(c) if c == 'c' || c == 'h' => break,
+                    _ => (),
+                }
+                _ => (),
+            }
+        }
+        self.terminal.clear_all();
+        self.terminal.flush();
+    }
 
     fn ask_user_for_path(&mut self) -> Option<PathBuf> {
-        self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
+        self.terminal.move_cursor_at(0, self.terminal.get_last_visible_row_position() - 1);
         self.terminal.clear_current_line();
-        self.terminal.print(style("Path: ").with(Color::White).on(Color::Blue));
+        self.terminal.print_text("Path: ", Color::White, Color::Blue);
         self.terminal.flush();
         let mut path_buffer = String::new();
         loop {
@@ -265,6 +293,13 @@ impl Editor {
                     Key::Esc => {
                         path_buffer.clear();
                         break;
+                    }
+                    _ => (),
+                },
+                Event::CtrlKeyPressed(key) => match key {
+                    Key::Char(c) if c == 'c' => {
+                        path_buffer.clear();
+                        break;
                     },
                     _ => (),
                 },
@@ -272,8 +307,10 @@ impl Editor {
             }
             self.terminal.move_cursor_at(0, self.terminal.get_size_row() - 2);
             self.terminal.clear_current_line();
-            self.terminal.print(style("Path: ").with(Color::White).on(Color::Blue));
-            self.terminal.print(style(&path_buffer).with(Color::White).on(Color::Blue));
+
+            self.terminal.print_text("Path: ", Color::White, Color::Blue);
+            self.terminal.print_text(&path_buffer, Color::White, Color::Blue);
+
             self.terminal.flush();
         }
         self.terminal.clear_current_line();
@@ -290,7 +327,7 @@ impl Editor {
         self.terminal.enable_raw_mode();
         loop {
             self.draw();
-            if self.will_quit == true {
+            if self.will_quit_flag == true {
                 break;
             }
             match self.terminal.read_event() {

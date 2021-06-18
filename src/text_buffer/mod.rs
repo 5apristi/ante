@@ -73,7 +73,7 @@ impl Buffer {
                         write!(fp, "{}\n", self.borrow_row_at(i)).unwrap();
                     }
                     BufferResult::Saved
-                },
+                }
                 Err(_) => BufferResult::Unsaved,
             }
         } else {
