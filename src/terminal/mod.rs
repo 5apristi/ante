@@ -123,17 +123,18 @@ impl Terminal {
     pub fn get_size(&self) -> Size {
         self.size.clone()
     }
-    pub fn get_last_visible_row_position(&self) -> usize {
+    /// Get last visible row position.
+    pub fn get_last_row(&self) -> usize {
         self.size.get_rows() - 1
     }
-    pub fn get_last_visible_column_position(&self) -> usize {
+    /// Get last visible column position.
+    pub fn get_last_col(&self) -> usize {
         self.size.get_cols() - 1
     }
 
     // events
     pub fn read_event(&mut self) -> Event {
-        let event = crossterm::event::read().unwrap();
-        match event {
+        match crossterm::event::read().unwrap() {
             CrosstermEvent::Key(key_event)
                 if ((key_event.modifiers == KeyModifiers::NONE) || (key_event.modifiers == KeyModifiers::SHIFT)) =>
             {
