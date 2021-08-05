@@ -232,7 +232,7 @@ impl Editor {
             },
             Key::Char('o') => {
                 self.open_new_file();
-            },
+            }
             Key::Char('h') => self.open_help_menu(), // for some reasons ctrl + backspace open also the menu
             _ => (),
         }

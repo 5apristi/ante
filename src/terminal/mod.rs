@@ -3,14 +3,17 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::{terminal, Command, ExecutableCommand, QueueableCommand};
 use event::{key_pressed_with_control, single_key_pressed, Event};
 use std::io::{stdout, Stdout, Write};
-pub mod style;
 use style::convert_crossterm_color_enum;
 use style::Color;
+
+// Needed for crossterm 0.20.0 (previous version: 0.19.0)
+use crossterm::style::Stylize;
 
 pub use size::Size;
 
 pub mod event;
 mod size;
+pub mod style;
 
 pub struct Terminal {
     output: Stdout,
