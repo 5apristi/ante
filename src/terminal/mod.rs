@@ -6,7 +6,7 @@ use std::io::{stdout, Stdout, Write};
 use style::convert_crossterm_color_enum;
 use style::Color;
 
-// Needed for crossterm 0.20.0 (previous version: 0.19.0)
+// Needed for crossterm 0.20.0 (previous version: 0.19.0).
 use crossterm::style::Stylize;
 
 pub use size::Size;

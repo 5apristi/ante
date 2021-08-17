@@ -5,33 +5,34 @@ use crate::text_buffer::Buffer;
 use crate::text_buffer::BufferStatus;
 use std::cmp::min;
 use std::path::PathBuf;
-
-mod help_menu;
 use help_menu::HELP_MENU_CONTENT;
-
-mod cursor;
+use mode::Mode;
 pub use cursor::Cursor;
 
-const STATUS_BAR: &str = "ctrl + h: help menu";
+mod help_menu;
+mod cursor;
+mod mode;
+mod input;
 
-// this structure represent the text editor.
+// This structure represents the text editor.
 pub struct Editor {
-    // this flag will be turned on (true) if the user asks to quit
+    // This flag will be turned on (true) if the user asks to quit.
     will_quit_flag: bool,
     terminal: Terminal,
     text_buffer: Buffer,
     /* /!\ It's the cursor manipulating the text buffer,
     not the one drawn on the screen ! I didn't create another
-    abstraction for the cursor drawn on the screen for simplicity's sake */
+    abstraction for the cursor drawn on the screen for simplicity's sake. */
     cursor: Cursor,
     text_buffer_row_offset: usize,
     text_buffer_col_offset: usize,
+    current_mode: Mode,
 }
 
 impl Editor {
-    // constructor
-    /* returns a new instance of Editor struct,
-    with or without argument (which in this case might be a file path, existing or not) */
+    // Constructor.
+    /* Returns a new instance of Editor struct,
+    with or without argument (which in this case might be a file path, existing or not). */
     pub fn new(args: Option<String>) -> Self {
         Self {
             will_quit_flag: false,
@@ -43,6 +44,7 @@ impl Editor {
             cursor: Cursor::new(),
             text_buffer_row_offset: 0,
             text_buffer_col_offset: 0,
+            current_mode: Mode::new(),
         }
     }
 
@@ -145,9 +147,22 @@ impl Editor {
     fn draw_status_bar(&mut self) {
         self.terminal.move_cursor_at(0, self.terminal.get_last_row());
         self.terminal.clear_current_line();
-        if STATUS_BAR.len() + 7 < self.terminal.get_size_col() {
-            self.terminal.print_text(STATUS_BAR, Color::Black, Color::White);
+        let to_print: &str;
+        match self.current_mode {
+            Mode::Navigation => to_print = "Navigation",
+            Mode::Edition => to_print = "Edition",
+            Mode::Selection => to_print = "Selection",
         }
+        if let Some(path_str) = self.text_buffer.get_path_as_str() {
+            if to_print.len() + path_str.len() < self.terminal.get_size_col() {
+                self.terminal.print_text(to_print, Color::Black, Color::White);
+            }
+        } else {
+            if to_print.len() + "unsaved".len() - 1 < self.terminal.get_size_col() {
+                self.terminal.print_text(to_print, Color::Black, Color::White);
+            }
+        }
+        
         match self.text_buffer.get_path_as_str() {
             Some(s) => {
                 if s.len() < self.terminal.get_size_col() {
@@ -161,29 +176,79 @@ impl Editor {
                 }
             }
             None => {
-                self.terminal
-                    .move_cursor_at(self.terminal.get_size_col() - 7, self.terminal.get_last_row());
-                self.terminal.print_text("unsaved", Color::White, Color::Red);
+                if self.terminal.get_size_col() > 6 {
+                    self.terminal.move_cursor_at(self.terminal.get_size_col() - 7, self.terminal.get_last_row());
+                    self.terminal.print_text("unsaved", Color::White, Color::Red);
+                }
             }
         }
     }
-
+    fn switch_mode_to_navigation(&mut self) {
+        self.current_mode.switch_to_navigation();
+    }
+    fn switch_mode_to_edition(&mut self) {
+        self.current_mode.switch_to_edition();
+    }
+    fn switch_mode_to_selection(&mut self) {
+        self.current_mode.switch_to_selection();
+    }
     // events
-    fn key_pressed(&mut self, key: Key) {
+    fn navigation_mode_key_process(&mut self, key: Key) {
         match key {
-            // edit buffer
+            Key::Char('e') => self.switch_mode_to_edition(),
+            // arrow keys
+            Key::Char('t') => self.move_cursor_down(),
+            Key::Char('s') => self.move_cursor_up(),
+            Key::Char('c') => self.move_cursor_left(),
+            Key::Char('r') => self.move_cursor_right(),
+            _ => (),
+        }
+    }
+    fn edition_mode_key_process(&mut self, key: Key) {
+        match key {
             Key::Char(c) => {
-                self.text_buffer
-                    .insert_char(self.current_col_position(), self.current_row_position(), c);
+                self.text_buffer.insert_char(
+                    self.current_col_position(),
+                    self.current_row_position(),
+                    c);
                 self.move_cursor_right(); // double vérif de current col pos, à revoir
-            }
+            },
             Key::Backspace => self.backspace_key_pressed(),
             Key::Enter => self.enter_key_pressed(),
-            // arrow keys
-            Key::DownArrow => self.move_cursor_down(),
-            Key::UpArrow => self.move_cursor_up(),
-            Key::LeftArrow => self.move_cursor_left(),
-            Key::RightArrow => self.move_cursor_right(),
+            Key::Esc => self.switch_mode_to_navigation(),
+            _ => (),
+        }
+    }
+    fn selection_mode_key_process(&mut self, key: Key) {}
+    fn key_pressed(&mut self, key: Key) {
+        match self.current_mode {
+            Mode::Navigation => self.navigation_mode_key_process(key),
+            Mode::Edition => self.edition_mode_key_process(key),
+            Mode::Selection => self.selection_mode_key_process(key),
+        }
+    }
+    fn key_pressed_with_ctrl(&mut self, key: Key) {
+        match key {
+            Key::Char('c') => self.will_quit_flag = true,
+            Key::Char('s') => match self.text_buffer.get_path() {
+                Some(_) => match self.text_buffer.save() {
+                    BufferStatus::Saved => {}
+                    BufferStatus::Unsaved => {}
+                },
+                None => {
+                    let path = self.ask_user_for_path();
+                    if let Some(p) = path {
+                        match self.text_buffer.save_as(p) {
+                            BufferStatus::Saved => {}
+                            BufferStatus::Unsaved => {}
+                        }
+                    }
+                }
+            },
+            Key::Char('o') => {
+                self.open_new_file();
+            }
+            Key::Char('h') => self.open_help_menu(), // for some reasons ctrl + backspace opens also the menu
             _ => (),
         }
     }
@@ -210,31 +275,6 @@ impl Editor {
             self.text_buffer.insert_row_at_with_vec(self.current_row_position() + 1, vec);
             self.move_cursor_down();
             self.cursor.set_col(0);
-        }
-    }
-    fn key_pressed_with_ctrl(&mut self, key: Key) {
-        match key {
-            Key::Char('c') => self.will_quit_flag = true,
-            Key::Char('s') => match self.text_buffer.get_path() {
-                Some(_) => match self.text_buffer.save() {
-                    BufferStatus::Saved => {}
-                    BufferStatus::Unsaved => {}
-                },
-                None => {
-                    let path = self.ask_user_for_path();
-                    if let Some(p) = path {
-                        match self.text_buffer.save_as(p) {
-                            BufferStatus::Saved => {}
-                            BufferStatus::Unsaved => {}
-                        }
-                    }
-                }
-            },
-            Key::Char('o') => {
-                self.open_new_file();
-            }
-            Key::Char('h') => self.open_help_menu(), // for some reasons ctrl + backspace open also the menu
-            _ => (),
         }
     }
     fn open_new_file(&mut self) {

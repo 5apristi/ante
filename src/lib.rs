@@ -1,18 +1,37 @@
-/* external dependencies */
-// provides the backend for terminal
+/*** --------------------- ***/
+/*** external dependencies ***/
+/*** --------------------- ***/
+
+// Provides the backend for terminal.
 extern crate crossterm;
 
-/* modules */
-// contains the Editor struct which represent the text editor itself
+/*** ------- ***/
+/*** modules ***/
+/*** ------- ***/
+
+// It Contains the Editor struct which represent the text editor itself.
 pub mod editor;
-// interface to manipulate terminal (using Terminal struct),
-// using Crossterm as backend
+
+// Interface to manipulate terminal (using Terminal struct),
+// using Crossterm as backend.
 pub mod terminal;
-// the text buffer
+
+// It contains the TextBuffer struct which stores into the heap text data encoded in utf-8.
 pub mod text_buffer;
 
-/* re-exporting Editor to make it visible from main.rs */
+// Config module: it contains default configuration for ante and parses user's configuration file. 
+pub mod config;
+
+/*** ---------- ***/
+/*** Re-exports ***/
+/*** ---------- ***/
+
+// It makes Editor visible from main.rs.
 pub use editor::Editor;
+
+/*** ----- ***/
+/*** Tests ***/
+/*** ----- ***/
 
 #[cfg(test)]
 mod tests {
